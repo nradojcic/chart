@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/nradojcic/chart/internal/link"
@@ -15,7 +16,7 @@ func Crawl(urlStr string, maxDepth int) []string {
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
-		urlStr: struct{}{},
+		normalize(urlStr): {},
 	}
 
 	for i := 0; i <= maxDepth; i++ {
@@ -30,8 +31,9 @@ func Crawl(urlStr string, maxDepth int) []string {
 
 			seen[url] = struct{}{}
 			for _, link := range get(url) {
-				if _, ok := seen[link]; !ok {
-					nq[link] = struct{}{}
+				normalizedLink := normalize(link)
+				if _, ok := seen[normalizedLink]; !ok {
+					nq[normalizedLink] = struct{}{}
 				}
 			}
 		}
@@ -42,6 +44,7 @@ func Crawl(urlStr string, maxDepth int) []string {
 		ret = append(ret, url)
 	}
 
+	sort.Strings(ret)
 	return ret
 }
 
@@ -92,4 +95,13 @@ func withPrefix(pfx string) func(string) bool {
 	return func(link string) bool {
 		return strings.HasPrefix(link, pfx)
 	}
+}
+
+func normalize(rawUrl string) string {
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return rawUrl
+	}
+	u.Fragment = ""                            // remove # fragment from URL
+	return strings.TrimSuffix(u.String(), "/") // remove trailing slash
 }
