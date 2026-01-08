@@ -29,9 +29,19 @@ var buildCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		urlStr := args[0]
 		maxDepth := viper.GetInt("depth")
+		outputFormat := viper.GetString("format")
 
 		pages := sitemap.Crawl(urlStr, maxDepth)
 
+		// Text output
+		if outputFormat == "txt" {
+			for _, page := range pages {
+				fmt.Println(page)
+			}
+			return
+		}
+
+		// Default XML output
 		toXml := urlset{
 			Xmlns: xmlns,
 		}
@@ -53,6 +63,8 @@ func init() {
 	rootCmd.AddCommand(buildCmd)
 
 	buildCmd.Flags().IntP("depth", "d", 3, "The maximum depth to traverse")
+	buildCmd.Flags().StringP("format", "f", "xml", "The output format (xml or txt)")
 
 	viper.BindPFlag("depth", buildCmd.Flags().Lookup("depth"))
+	viper.BindPFlag("format", buildCmd.Flags().Lookup("format"))
 }
