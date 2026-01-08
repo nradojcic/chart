@@ -1,7 +1,3 @@
-/*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -16,14 +12,15 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "chart",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Version: "1.0.0",
+	Use:     "chart",
+	Short:   "chart is a fast and flexible sitemap generator",
+	Long: `Site Chart (chart) is a CLI tool designed to crawl a website 
+and generate a comprehensive sitemap. 
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+It follows links recursively within the same domain to 
+map out your site's structure. You can customize the depth of the 
+crawl and the output format via flags or a configuration file.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -41,6 +38,8 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -49,7 +48,10 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	versionTemplate := `{{printf "%s: %s - version %s\n" .Name .Short .Version}}`
+	rootCmd.SetVersionTemplate(versionTemplate)
 }
 
 // initConfig reads in config file and ENV variables if set.
