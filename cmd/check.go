@@ -47,9 +47,20 @@ var checkCmd = &cobra.Command{
 		}
 
 		// Check URLs
+		const maxConcurrency = 100 // upper limit on user provided input to avoid resource exhaustion
+		if Concurrency > maxConcurrency {
+			Concurrency = maxConcurrency
+		}
+		if Concurrency < 1 {
+			Concurrency = 1
+		}
+
+		guard := make(chan struct{}, Concurrency) // semaphore to limit concurrency
+
 		for _, url := range urls {
 			wg.Add(1)
-			go checkUrl(url, resultsChan, &wg)
+			guard <- struct{}{} // block when guard channel capacity full
+			go checkUrl(url, resultsChan, &wg, guard)
 		}
 
 		go func() {
@@ -102,8 +113,11 @@ func init() {
 	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup) {
-	defer wg.Done()
+func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}) {
+	defer func() {
+		wg.Done()
+		<-guard
+	}()
 
 	client := &http.Client{}
 	req, err := http.NewRequest("HEAD", url, nil)

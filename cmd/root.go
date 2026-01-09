@@ -10,6 +10,7 @@ import (
 
 var cfgFile string
 var UserAgent string
+var Concurrency int
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -47,6 +48,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.chart.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&UserAgent, "user-agent", "u", "SiteChart-Sitemapper/1.0", "Custom User-Agent string")
+	rootCmd.PersistentFlags().IntVarP(&Concurrency, "concurrency", "c", 10, "Number of concurrent workers")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
