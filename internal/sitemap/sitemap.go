@@ -7,13 +7,14 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nradojcic/chart/internal/link"
 )
 
 // Crawl performs a breadth-first crawl of the website starting at urlStr
 // up to maxDepth levels deep, returning a slice of discovered URLs.
-func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int) []string {
+func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int, throttle <-chan time.Time) []string {
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
@@ -50,6 +51,9 @@ func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int) []str
 					wg.Done()
 					<-guard
 				}()
+				if throttle != nil {
+					<-throttle
+				}
 				linksChan <- get(u, userAgent)
 			}(url)
 		}

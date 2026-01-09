@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,6 +33,7 @@ var checkCmd = &cobra.Command{
 
 		userAgent := viper.GetString("user-agent")
 		concurrency := viper.GetInt("concurrency")
+		rateLimit := viper.GetFloat64("rate-limit")
 
 		// Gather input from Args or Stdin
 		if len(args) > 0 {
@@ -51,7 +53,7 @@ var checkCmd = &cobra.Command{
 		}
 
 		// Check URLs
-		const maxConcurrency = 100 // upper limit on user provided input to avoid resource exhaustion
+		const maxConcurrency = 100 // upper limit on user provided concurrency to avoid resource exhaustion
 		if concurrency > maxConcurrency {
 			concurrency = maxConcurrency
 		}
@@ -59,12 +61,27 @@ var checkCmd = &cobra.Command{
 			concurrency = 1
 		}
 
+		const maxRateLimit = 100.0 // upper limit on user provided rate to avoid abuse
+		if rateLimit > maxRateLimit {
+			rateLimit = maxRateLimit
+		}
+		if rateLimit < 0 {
+			rateLimit = 0
+		}
+
+		var throttle <-chan time.Time
+		if rateLimit > 0 {
+			ticker := time.NewTicker(time.Duration(float64(time.Second) / rateLimit))
+			defer ticker.Stop()
+			throttle = ticker.C
+		}
+
 		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
 
 		for _, url := range urls {
 			wg.Add(1)
 			guard <- struct{}{} // block when guard channel capacity full
-			go checkUrl(url, resultsChan, &wg, guard, userAgent)
+			go checkUrl(url, resultsChan, &wg, guard, userAgent, throttle)
 		}
 
 		go func() {
@@ -107,11 +124,15 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 }
 
-func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string) {
+func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string, throttle <-chan time.Time) {
 	defer func() {
 		wg.Done()
 		<-guard
 	}()
+
+	if throttle != nil {
+		<-throttle
+	}
 
 	client := &http.Client{}
 	req, err := http.NewRequest("HEAD", url, nil)

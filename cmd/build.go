@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nradojcic/chart/internal/sitemap"
 	"github.com/spf13/cobra"
@@ -32,8 +33,9 @@ var buildCmd = &cobra.Command{
 		outputFormat := viper.GetString("format")
 		userAgent := viper.GetString("user-agent")
 		concurrency := viper.GetInt("concurrency")
+		rateLimit := viper.GetFloat64("rate-limit")
 
-		const maxConcurrency = 100 // upper limit on user provided input to avoid resource exhaustion
+		const maxConcurrency = 100 // upper limit on user provided concurrency to avoid resource exhaustion
 		if concurrency > maxConcurrency {
 			concurrency = maxConcurrency
 		}
@@ -41,7 +43,22 @@ var buildCmd = &cobra.Command{
 			concurrency = 1
 		}
 
-		pages := sitemap.Crawl(urlStr, maxDepth, userAgent, concurrency)
+		const maxRateLimit = 100.0 // upper limit on user provided rate to avoid abuse
+		if rateLimit > maxRateLimit {
+			rateLimit = maxRateLimit
+		}
+		if rateLimit < 0 {
+			rateLimit = 0
+		}
+
+		var throttle <-chan time.Time
+		if rateLimit > 0 {
+			ticker := time.NewTicker(time.Duration(float64(time.Second) / rateLimit))
+			defer ticker.Stop()
+			throttle = ticker.C
+		}
+
+		pages := sitemap.Crawl(urlStr, maxDepth, userAgent, concurrency, throttle)
 
 		// Text output
 		if outputFormat == "txt" {

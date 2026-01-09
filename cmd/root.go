@@ -26,9 +26,6 @@ and generate a comprehensive sitemap.
 It follows links recursively within the same domain to 
 map out your site's structure. You can customize the depth of the 
 crawl and the output format via flags or a configuration file.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
