@@ -9,6 +9,7 @@ import (
 )
 
 var cfgFile string
+var UserAgent string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -45,6 +46,7 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.chart.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&UserAgent, "user-agent", "u", "SiteChart-Sitemapper/1.0", "Custom User-Agent string")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

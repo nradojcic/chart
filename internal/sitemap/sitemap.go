@@ -12,7 +12,7 @@ import (
 
 // Crawl performs a breadth-first crawl of the website starting at urlStr
 // up to maxDepth levels deep, returning a slice of discovered URLs.
-func Crawl(urlStr string, maxDepth int) []string {
+func Crawl(urlStr string, maxDepth int, userAgent string) []string {
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
@@ -30,7 +30,7 @@ func Crawl(urlStr string, maxDepth int) []string {
 			}
 
 			seen[url] = struct{}{}
-			for _, link := range get(url) {
+			for _, link := range get(url, userAgent) {
 				normalizedLink := normalize(link)
 				if _, ok := seen[normalizedLink]; !ok {
 					nq[normalizedLink] = struct{}{}
@@ -48,8 +48,16 @@ func Crawl(urlStr string, maxDepth int) []string {
 	return ret
 }
 
-func get(urlStr string) []string {
-	resp, err := http.Get(urlStr)
+func get(urlStr string, userAgent string) []string {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("User-Agent", userAgent)
+
+	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}

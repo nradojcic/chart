@@ -26,19 +26,19 @@ var buildCmd = &cobra.Command{
 	Use:   "build [url]",
 	Short: "Builds a sitemap for the provided URL",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		urlStr := args[0]
 		maxDepth := viper.GetInt("depth")
 		outputFormat := viper.GetString("format")
 
-		pages := sitemap.Crawl(urlStr, maxDepth)
+		pages := sitemap.Crawl(urlStr, maxDepth, UserAgent)
 
 		// Text output
 		if outputFormat == "txt" {
 			for _, page := range pages {
 				fmt.Println(page)
 			}
-			return
+			return nil
 		}
 
 		// Default XML output
@@ -56,6 +56,8 @@ var buildCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Error encoding XML: %v\n", err)
 			os.Exit(1)
 		}
+
+		return nil
 	},
 }
 
