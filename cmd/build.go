@@ -30,16 +30,18 @@ var buildCmd = &cobra.Command{
 		urlStr := args[0]
 		maxDepth := viper.GetInt("depth")
 		outputFormat := viper.GetString("format")
+		userAgent := viper.GetString("user-agent")
+		concurrency := viper.GetInt("concurrency")
 
 		const maxConcurrency = 100 // upper limit on user provided input to avoid resource exhaustion
-		if Concurrency > maxConcurrency {
-			Concurrency = maxConcurrency
+		if concurrency > maxConcurrency {
+			concurrency = maxConcurrency
 		}
-		if Concurrency < 1 {
-			Concurrency = 1
+		if concurrency < 1 {
+			concurrency = 1
 		}
 
-		pages := sitemap.Crawl(urlStr, maxDepth, UserAgent, Concurrency)
+		pages := sitemap.Crawl(urlStr, maxDepth, userAgent, concurrency)
 
 		// Text output
 		if outputFormat == "txt" {

@@ -8,9 +8,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var UserAgent string
-var Concurrency int
+var (
+	cfgFile     string
+	concurrency int
+	rateLimit   float64
+	userAgent   string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -42,17 +45,14 @@ func init() {
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.chart.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&UserAgent, "user-agent", "u", "SiteChart-Sitemapper/1.0", "Custom User-Agent string")
-	rootCmd.PersistentFlags().IntVarP(&Concurrency, "concurrency", "c", 10, "Number of concurrent workers")
+	rootCmd.PersistentFlags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers")
+	rootCmd.PersistentFlags().Float64VarP(&rateLimit, "rate-limit", "r", 2, "Rate limit in requests per second (0 for no limit)")
+	rootCmd.PersistentFlags().StringVarP(&userAgent, "user-agent", "u", "SiteChart-Sitemapper/1.0", "Custom User-Agent header for HTTP requests")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	viper.BindPFlag("concurrency", rootCmd.PersistentFlags().Lookup("concurrency"))
+	viper.BindPFlag("rate-limit", rootCmd.PersistentFlags().Lookup("rate-limit"))
+	viper.BindPFlag("user-agent", rootCmd.PersistentFlags().Lookup("user-agent"))
 
 	versionTemplate := `{{printf "%s: %s - version %s\n" .Name .Short .Version}}`
 	rootCmd.SetVersionTemplate(versionTemplate)

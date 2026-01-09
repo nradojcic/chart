@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type CheckResult struct {
@@ -29,6 +30,9 @@ var checkCmd = &cobra.Command{
 		var wg sync.WaitGroup
 		var urls []string
 
+		userAgent := viper.GetString("user-agent")
+		concurrency := viper.GetInt("concurrency")
+
 		// Gather input from Args or Stdin
 		if len(args) > 0 {
 			urls = args
@@ -48,19 +52,19 @@ var checkCmd = &cobra.Command{
 
 		// Check URLs
 		const maxConcurrency = 100 // upper limit on user provided input to avoid resource exhaustion
-		if Concurrency > maxConcurrency {
-			Concurrency = maxConcurrency
+		if concurrency > maxConcurrency {
+			concurrency = maxConcurrency
 		}
-		if Concurrency < 1 {
-			Concurrency = 1
+		if concurrency < 1 {
+			concurrency = 1
 		}
 
-		guard := make(chan struct{}, Concurrency) // semaphore to limit concurrency
+		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
 
 		for _, url := range urls {
 			wg.Add(1)
 			guard <- struct{}{} // block when guard channel capacity full
-			go checkUrl(url, resultsChan, &wg, guard)
+			go checkUrl(url, resultsChan, &wg, guard, userAgent)
 		}
 
 		go func() {
@@ -101,19 +105,9 @@ var checkCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// checkCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// checkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}) {
+func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string) {
 	defer func() {
 		wg.Done()
 		<-guard
@@ -125,7 +119,7 @@ func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, gu
 		resultsChan <- CheckResult{Url: url, Status: "dead", Code: 0}
 		return
 	}
-	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
