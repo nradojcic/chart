@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -18,16 +19,35 @@ type CheckResult struct {
 
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Checks a list of URLs from stdin to see if they are live or dead.",
+	Use:   "check [urls...]",
+	Short: "Checks if provided URLs are live or dead",
+	Long:  `Provide URLs as arguments or pipe them via stdin.`,
+	Example: `  chart check https://example1.com https://example2.com
+  cat urls.txt | chart check`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		resultsChan := make(chan CheckResult)
 		var wg sync.WaitGroup
+		var urls []string
 
-		scanner := bufio.NewScanner(os.Stdin)
+		// Gather input from Args or Stdin
+		if len(args) > 0 {
+			urls = args
+		} else {
+			stat, _ := os.Stdin.Stat()
+			if (stat.Mode() & os.ModeCharDevice) != 0 {
+				return fmt.Errorf("no URLs provided via arguments or stdin")
+			}
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				urls = append(urls, scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+		}
 
-		for scanner.Scan() {
-			url := scanner.Text()
+		// Check URLs
+		for _, url := range urls {
 			wg.Add(1)
 			go checkUrl(url, resultsChan, &wg)
 		}
@@ -37,6 +57,7 @@ var checkCmd = &cobra.Command{
 			close(resultsChan)
 		}()
 
+		// Process results
 		var liveLinks, deadLinks []CheckResult
 		for result := range resultsChan {
 			if result.Status == "live" {
@@ -45,6 +66,13 @@ var checkCmd = &cobra.Command{
 				deadLinks = append(deadLinks, result)
 			}
 		}
+
+		sort.Slice(liveLinks, func(i, j int) bool {
+			return liveLinks[i].Url < liveLinks[j].Url
+		})
+		sort.Slice(deadLinks, func(i, j int) bool {
+			return deadLinks[i].Url < deadLinks[j].Url
+		})
 
 		fmt.Println("Live Links:")
 		for _, link := range liveLinks {
