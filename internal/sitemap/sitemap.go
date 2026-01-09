@@ -6,13 +6,14 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/nradojcic/chart/internal/link"
 )
 
 // Crawl performs a breadth-first crawl of the website starting at urlStr
 // up to maxDepth levels deep, returning a slice of discovered URLs.
-func Crawl(urlStr string, maxDepth int, userAgent string) []string {
+func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int) []string {
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
@@ -24,13 +25,42 @@ func Crawl(urlStr string, maxDepth int, userAgent string) []string {
 		if len(q) == 0 {
 			break
 		}
-		for url, _ := range q {
-			if _, ok := seen[url]; ok {
-				continue
-			}
 
-			seen[url] = struct{}{}
-			for _, link := range get(url, userAgent) {
+		var urlsToCrawl []string
+		for url := range q {
+			if _, ok := seen[url]; !ok {
+				urlsToCrawl = append(urlsToCrawl, url)
+				seen[url] = struct{}{}
+			}
+		}
+
+		if len(urlsToCrawl) == 0 {
+			continue
+		}
+
+		linksChan := make(chan []string)
+		var wg sync.WaitGroup
+		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
+
+		for _, url := range urlsToCrawl {
+			wg.Add(1)
+			guard <- struct{}{} // block when guard channel capacity full
+			go func(u string) {
+				defer func() {
+					wg.Done()
+					<-guard
+				}()
+				linksChan <- get(u, userAgent)
+			}(url)
+		}
+
+		go func() {
+			wg.Wait()
+			close(linksChan)
+		}()
+
+		for links := range linksChan {
+			for _, link := range links {
 				normalizedLink := normalize(link)
 				if _, ok := seen[normalizedLink]; !ok {
 					nq[normalizedLink] = struct{}{}
@@ -40,7 +70,7 @@ func Crawl(urlStr string, maxDepth int, userAgent string) []string {
 	}
 
 	ret := make([]string, 0, len(seen))
-	for url, _ := range seen {
+	for url := range seen {
 		ret = append(ret, url)
 	}
 
@@ -70,7 +100,7 @@ func get(urlStr string, userAgent string) []string {
 	}
 	base := baseUrl.String()
 
-	return filter(hrefs(resp.Body, base), withPrefix(base))
+	return filter(hrefs(resp.Body, base), withPrefix(base)) // only keep links from the same base domain
 }
 
 func hrefs(r io.Reader, base string) []string {
