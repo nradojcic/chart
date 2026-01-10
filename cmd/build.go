@@ -34,6 +34,13 @@ var buildCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		timeout := viper.GetDuration("timeout")
+		if timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+
 		urlStr := args[0]
 		maxDepth := viper.GetInt("depth")
 		outputFormat := viper.GetString("format")

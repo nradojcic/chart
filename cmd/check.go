@@ -33,6 +33,13 @@ var checkCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		timeout := viper.GetDuration("timeout")
+		if timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+
 		resultsChan := make(chan CheckResult)
 		var wg sync.WaitGroup
 		var urls []string
