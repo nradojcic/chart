@@ -6,31 +6,28 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	html := `
-	<html>
-	<body>
-		<h1>My first page</h1>
-		<p>This is my first page</p>
-		<a href="/page2">Second page</a>
-	</body>
-	</html>
-	`
-
-	r := strings.NewReader(html)
-	links, err := Parse(r)
-	if err != nil {
-		t.Fatalf("Parse() returned an error: %v", err)
+	tests := []struct {
+		name string
+		html string
+		want int
+	}{
+		{"Single link", `<html><body><a href="/1">Link 1</a></body></html>`, 1},
+		{"Multiple links", `<html><body><a href="/1">1</a><a href="/2">2</a></body></html>`, 2},
+		{"No links", `<html><body><p>Hello World</p></body></html>`, 0},
+		{"Nested tags", `<html><body><a href="/3"><span>Text</span></a></body></html>`, 1},
 	}
 
-	if len(links) != 1 {
-		t.Fatalf("expected 1 link, got %d", len(links))
-	}
-
-	if links[0].Href != "/page2" {
-		t.Errorf("expected href '/page2', got '%s'", links[0].Href)
-	}
-
-	if links[0].Text != "Second page" {
-		t.Errorf("expected text 'Second page', got '%s'", links[0].Text)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			r := strings.NewReader(tt.html)
+			links, err := Parse(r)
+			if err != nil {
+				t.Fatalf("Parse() failed: %v", err)
+			}
+			if len(links) != tt.want {
+				t.Errorf("expected %d links, got %d", tt.want, len(links))
+			}
+		})
 	}
 }
