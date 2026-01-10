@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"sort"
@@ -12,15 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nradojcic/chart/internal/checker"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-type CheckResult struct {
-	Url    string
-	Status string
-	Code   int
-}
 
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
@@ -40,7 +34,7 @@ var checkCmd = &cobra.Command{
 			defer cancel()
 		}
 
-		resultsChan := make(chan CheckResult)
+		resultsChan := make(chan checker.CheckResult)
 		var wg sync.WaitGroup
 		var urls []string
 
@@ -98,7 +92,7 @@ var checkCmd = &cobra.Command{
 				break loop
 			case guard <- struct{}{}: // block when guard channel capacity full
 				wg.Add(1)
-				go checkUrl(ctx, url, resultsChan, &wg, guard, userAgent, throttle)
+				go checker.CheckUrl(ctx, url, resultsChan, &wg, guard, userAgent, throttle)
 			}
 		}
 
@@ -108,7 +102,7 @@ var checkCmd = &cobra.Command{
 		}()
 
 		// Process results
-		var liveLinks, deadLinks []CheckResult
+		var liveLinks, deadLinks []checker.CheckResult
 		for result := range resultsChan {
 			if result.Status == "live" {
 				liveLinks = append(liveLinks, result)
@@ -140,40 +134,4 @@ var checkCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
-}
-
-func checkUrl(ctx context.Context, url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string, throttle <-chan time.Time) {
-	defer func() {
-		wg.Done()
-		<-guard
-	}()
-
-	if throttle != nil {
-		select {
-		case <-throttle:
-		case <-ctx.Done():
-			return
-		}
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
-	if err != nil {
-		resultsChan <- CheckResult{Url: url, Status: "dead", Code: 0}
-		return
-	}
-	req.Header.Set("User-Agent", userAgent)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		resultsChan <- CheckResult{Url: url, Status: "dead", Code: 0}
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		resultsChan <- CheckResult{Url: url, Status: "live", Code: resp.StatusCode}
-	} else {
-		resultsChan <- CheckResult{Url: url, Status: "dead", Code: resp.StatusCode}
-	}
 }
