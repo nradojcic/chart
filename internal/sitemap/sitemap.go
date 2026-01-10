@@ -19,7 +19,7 @@ func Crawl(ctx context.Context, urlStr string, maxDepth int, userAgent string, c
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
-		normalize(urlStr): {},
+		Normalize(urlStr): {},
 	}
 
 	for i := 0; i <= maxDepth; i++ {
@@ -83,7 +83,7 @@ func Crawl(ctx context.Context, urlStr string, maxDepth int, userAgent string, c
 
 		for links := range linksChan {
 			for _, link := range links {
-				normalizedLink := normalize(link)
+				normalizedLink := Normalize(link)
 				if _, ok := seen[normalizedLink]; !ok {
 					nq[normalizedLink] = struct{}{}
 				}
@@ -157,7 +157,8 @@ func withPrefix(pfx string) func(string) bool {
 	}
 }
 
-func normalize(rawUrl string) string {
+// Normalize normalizes the URL by removing fragments and trailing slashes
+func Normalize(rawUrl string) string {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
 		return rawUrl
