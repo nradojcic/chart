@@ -62,8 +62,11 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".chart" (without extension).
+		// Search config in the current directory first (Project Root)
+		viper.AddConfigPath(".")
+		// Search config in the home directory
 		viper.AddConfigPath(home)
+
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".chart")
 	}

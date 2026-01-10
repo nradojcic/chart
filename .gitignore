@@ -1,4 +1,4 @@
 .idea/
 .vscode/
 /bin
-config.yaml
+.chart.yaml

@@ -1,0 +1,19 @@
+# Maximum number of concurrent network requests
+concurrency: 10
+
+# Maximum requests per second (0 for no limit)
+# Supports fractional numbers (e.g., 1.5 is one request every 667ms)
+rate-limit: 1.5
+
+# The User-Agent header sent with each request
+user-agent: "SiteChart-Sitemapper/1.0"
+
+# How many levels deep to follow links from the homepage
+depth: 5
+
+# Output format: "xml" or "txt"
+format: "txt"
+
+# Global timeout for the entire operation (e.g., 5m, 1h)
+# Use 0s for no timeout
+timeout: 30m
