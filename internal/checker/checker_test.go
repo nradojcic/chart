@@ -43,4 +43,15 @@ func TestCheckUrl(t *testing.T) {
 	if got.Status != "dead" || got.Code != 404 {
 		t.Errorf("Expected dead/404, got %s/%d", got.Status, got.Code)
 	}
+
+	// Test 3: Check an invalid URL
+	wg.Add(1)
+	guard <- struct{}{}
+	CheckUrl(ctx, "http://invalid-url:", resultsChan, &wg, guard, "test-bot", nil)
+
+	got = <-resultsChan
+	if got.Status != "dead" || got.Code != 0 {
+		t.Errorf("Expected dead/0, got %s/%d", got.Status, got.Code)
+	}
+
 }
