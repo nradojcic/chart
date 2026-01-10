@@ -22,4 +22,17 @@ func TestCrawl(t *testing.T) {
 	if len(pages) == 0 {
 		t.Fatal("Expected to find pages, but found none")
 	}
+
+	found := false
+	want := server.URL + "/page1"
+	for _, p := range pages {
+		if p == want {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected to find %s in results, but it was missing. Got: %v", want, pages)
+	}
 }
