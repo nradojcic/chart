@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,6 +30,9 @@ var checkCmd = &cobra.Command{
 	Example: `  chart check https://example1.com https://example2.com
   cat urls.txt | chart check`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
 		resultsChan := make(chan CheckResult)
 		var wg sync.WaitGroup
 		var urls []string
@@ -78,10 +84,15 @@ var checkCmd = &cobra.Command{
 
 		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
 
+	loop:
 		for _, url := range urls {
-			wg.Add(1)
-			guard <- struct{}{} // block when guard channel capacity full
-			go checkUrl(url, resultsChan, &wg, guard, userAgent, throttle)
+			select {
+			case <-ctx.Done():
+				break loop
+			case guard <- struct{}{}: // block when guard channel capacity full
+				wg.Add(1)
+				go checkUrl(ctx, url, resultsChan, &wg, guard, userAgent, throttle)
+			}
 		}
 
 		go func() {
@@ -124,18 +135,22 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 }
 
-func checkUrl(url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string, throttle <-chan time.Time) {
+func checkUrl(ctx context.Context, url string, resultsChan chan<- CheckResult, wg *sync.WaitGroup, guard chan struct{}, userAgent string, throttle <-chan time.Time) {
 	defer func() {
 		wg.Done()
 		<-guard
 	}()
 
 	if throttle != nil {
-		<-throttle
+		select {
+		case <-throttle:
+		case <-ctx.Done():
+			return
+		}
 	}
 
 	client := &http.Client{}
-	req, err := http.NewRequest("HEAD", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
 	if err != nil {
 		resultsChan <- CheckResult{Url: url, Status: "dead", Code: 0}
 		return

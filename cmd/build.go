@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/nradojcic/chart/internal/sitemap"
@@ -28,6 +31,9 @@ var buildCmd = &cobra.Command{
 	Short: "Builds a sitemap for the provided URL",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
 		urlStr := args[0]
 		maxDepth := viper.GetInt("depth")
 		outputFormat := viper.GetString("format")
@@ -58,7 +64,7 @@ var buildCmd = &cobra.Command{
 			throttle = ticker.C
 		}
 
-		pages := sitemap.Crawl(urlStr, maxDepth, userAgent, concurrency, throttle)
+		pages := sitemap.Crawl(ctx, urlStr, maxDepth, userAgent, concurrency, throttle)
 
 		// Text output
 		if outputFormat == "txt" {

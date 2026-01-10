@@ -1,6 +1,7 @@
 package sitemap
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,7 +15,7 @@ import (
 
 // Crawl performs a breadth-first crawl of the website starting at urlStr
 // up to maxDepth levels deep, returning a slice of discovered URLs.
-func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int, throttle <-chan time.Time) []string {
+func Crawl(ctx context.Context, urlStr string, maxDepth int, userAgent string, concurrency int, throttle <-chan time.Time) []string {
 	seen := make(map[string]struct{})
 	var q map[string]struct{}
 	nq := map[string]struct{}{
@@ -22,6 +23,13 @@ func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int, throt
 	}
 
 	for i := 0; i <= maxDepth; i++ {
+		// check for context cancellation at the beginning of each level of crawl
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+
 		q, nq = nq, make(map[string]struct{})
 		if len(q) == 0 {
 			break
@@ -43,19 +51,29 @@ func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int, throt
 		var wg sync.WaitGroup
 		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
 
+	loop:
 		for _, url := range urlsToCrawl {
-			wg.Add(1)
-			guard <- struct{}{} // block when guard channel capacity full
-			go func(u string) {
-				defer func() {
-					wg.Done()
-					<-guard
-				}()
-				if throttle != nil {
-					<-throttle
-				}
-				linksChan <- get(u, userAgent)
-			}(url)
+			select {
+			case <-ctx.Done():
+				break loop
+			case guard <- struct{}{}: // block when guard channel capacity full
+				wg.Add(1)
+				go func(u string) {
+					defer func() {
+						wg.Done()
+						<-guard
+					}()
+
+					if throttle != nil {
+						select {
+						case <-throttle:
+						case <-ctx.Done():
+							return
+						}
+					}
+					linksChan <- get(ctx, u, userAgent)
+				}(url)
+			}
 		}
 
 		go func() {
@@ -82,18 +100,18 @@ func Crawl(urlStr string, maxDepth int, userAgent string, concurrency int, throt
 	return ret
 }
 
-func get(urlStr string, userAgent string) []string {
+func get(ctx context.Context, urlStr string, userAgent string) []string {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", urlStr, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
 	if err != nil {
-		panic(err)
+		return []string{}
 	}
 
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return []string{}
 	}
 	defer resp.Body.Close()
 
