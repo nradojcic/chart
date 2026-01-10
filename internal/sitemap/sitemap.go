@@ -157,12 +157,15 @@ func withPrefix(pfx string) func(string) bool {
 	}
 }
 
-// Normalize normalizes the URL by removing fragments and trailing slashes
+// Normalize prepares a URL for consistent comparison by standardizing the
+// hostname casing and removing fragments or trailing slashes.
 func Normalize(rawUrl string) string {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
 		return rawUrl
 	}
+
+	u.Host = strings.ToLower(u.Host)           // domain names are case insensitive, paths aren't
 	u.Fragment = ""                            // remove # fragment from URL
 	return strings.TrimSuffix(u.String(), "/") // remove trailing slash
 }
