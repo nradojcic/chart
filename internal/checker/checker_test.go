@@ -53,5 +53,4 @@ func TestCheckUrl(t *testing.T) {
 	if got.Status != "dead" || got.Code != 0 {
 		t.Errorf("Expected dead/0, got %s/%d", got.Status, got.Code)
 	}
-
 }
