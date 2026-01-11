@@ -2,3 +2,5 @@
 .vscode/
 /bin
 .chart.yaml
+coverage.out
+coverage.html
