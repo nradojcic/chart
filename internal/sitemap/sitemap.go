@@ -47,7 +47,7 @@ func Crawl(ctx context.Context, urlStr string, maxDepth int, userAgent string, c
 			continue
 		}
 
-		linksChan := make(chan []string)
+		linksChan := make(chan []string, len(urlsToCrawl))
 		var wg sync.WaitGroup
 		guard := make(chan struct{}, concurrency) // semaphore to limit concurrency
 
@@ -122,19 +122,23 @@ func get(ctx context.Context, urlStr string, userAgent string) []string {
 	}
 	base := baseUrl.String()
 
-	return filter(hrefs(resp.Body, base), withPrefix(base)) // only keep links from the same base domain
+	return filter(hrefs(resp.Body, reqUrl.String()), withPrefix(base)) // only keep links from the same base domain
 }
 
 func hrefs(r io.Reader, base string) []string {
 	links, _ := link.Parse(r)
+	baseUrl, _ := url.Parse(base)
 	var ret []string
+
 	for _, l := range links {
-		switch {
-		case strings.HasPrefix(l.Href, "/"):
-			ret = append(ret, base+l.Href)
-		case strings.HasPrefix(l.Href, "http"):
-			ret = append(ret, l.Href)
+		u, err := baseUrl.Parse(l.Href)
+		if err != nil {
+			continue
 		}
+		if u.Scheme != "" && u.Scheme != "http" && u.Scheme != "https" {
+			continue
+		}
+		ret = append(ret, u.String())
 	}
 
 	return ret
