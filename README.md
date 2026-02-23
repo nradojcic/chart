@@ -7,6 +7,23 @@
 
 Designed with efficiency in mind, `chart` leverages Go's concurrency to handle large-scale crawls and link checks swiftly while respecting server limits.
 
+## Visual Showcase
+
+### Sitemap Generation (XML)
+![Sitemap Generation (XML) Screenshot](assets/chart_xml.png)
+
+_Recursive crawl output formatted as a standard XML sitemap for SEO engine ingestion._
+
+### Sitemap Generation (TXT)
+![Sitemap Generation (TXT) Screenshot](assets/chart_txt.png)
+
+_Flat-file URL list generated via depth-controlled crawling, optimized for quick grep/awk processing._
+
+### Link Validator
+![Link Validator Screenshot](assets/chart_check.png)
+
+_Concurrent HTTP status verification of batches of URLs. Demonstrates using pipe to pass the data to the chart check command._
+
 ## Technical Highlights
 
 - **Concurrency Control**: Implemented a worker-pool pattern using buffered channels (semaphores) to manage concurrent HTTP requests efficiently without exhausting system resources.
@@ -78,12 +95,24 @@ cat urls.txt | chart check
 chart build https://example.com --format=txt | chart check
 ```
 
-### Global Flags
+### Flags
+
+**build command flags:**
+
+- `-d, --depth int`: The maximum depth to traverse (default 3).
+- `-f, --format string`: The output format (xml or txt) (default "xml").
+
+**check command flags:**
+
+- No specific flags for this command. Uses global flags.
+
+**Global Flags:**
 
 - `-c, --concurrency int`: Number of concurrent workers (default 10).
 - `-r, --rate-limit float`: Max requests per second (default 2).
-- `-u, --user-agent string`: Custom User-Agent header for identification to websites.
+- `-u, --user-agent string`: Custom User-Agent header (default "SiteChart-Sitemapper/1.0").
 - `-t, --timeout duration`: Global timeout (e.g., `30s`, `5m`).
+- `--config string`: Path to config file (default is $HOME/.chart.yaml).
 
 ## Configuration
 
@@ -115,10 +144,24 @@ Run the test suite with the race detector enabled:
 make test
 ```
 
-To view the visual line-by-line coverage report `coverage.html`:
+### Test Results
+Site Chart maintains a high standard of code quality with comprehensive testing across all core packages.
+
+#### Test Coverage Summary
+![Site Chart Test Coverage Screenshot](assets/chart_coverage.png)
+
+_Summary of code coverage across different packages, highlighting high testability._
+
+#### Test Summary:
+- **checker**: 80.0% coverage
+- **link**: 93.1% coverage
+- **sitemap**: 86.4% coverage
+
+To create the visual line-by-line coverage report:
 ```bash
 make coverage
 ```
+- The report will be generated as `coverage.out` and `coverage.html` in the project root.
 
 ## License
 
